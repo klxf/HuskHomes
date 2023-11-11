@@ -19,41 +19,15 @@
 
 package net.william278.huskhomes;
 
-import net.william278.huskhomes.command.BukkitCommand;
-import net.william278.huskhomes.command.Command;
-import net.william278.huskhomes.command.DisabledCommand;
-import net.william278.huskhomes.command.PaperCommand;
-import net.william278.huskhomes.hook.Pl3xMapHook;
+import net.william278.huskhomes.listener.PaperEventListener;
 import org.jetbrains.annotations.NotNull;
-
-import java.util.Arrays;
-import java.util.List;
 
 public class PaperHuskHomes extends BukkitHuskHomes {
 
     @Override
-    public void registerHooks() {
-        super.registerHooks();
-
-        if (getMapHook().isEmpty() && isDependencyLoaded("Pl3xMap")) {
-            getHooks().add(new Pl3xMapHook(this));
-        }
-    }
-
     @NotNull
-    @Override
-    public List<Command> registerCommands() {
-        return Arrays.stream(BukkitCommand.Type.values())
-                .map((type) -> {
-                    Command command = type.createCommand(this);
-                    if (this.getSettings().isCommandDisabled(command)) {
-                        command = new DisabledCommand(command.getName(), this);
-                    }
-                    new PaperCommand(command, this).register();
-                    return command;
-                })
-                .filter((command) -> !(command instanceof DisabledCommand))
-                .toList();
+    protected PaperEventListener getListener() {
+        return new PaperEventListener(this);
     }
 
 }

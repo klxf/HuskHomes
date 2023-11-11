@@ -100,7 +100,7 @@ public class Settings {
 
     @YamlComment("Names of tables to use on your database. Don't modify this unless you know what you're doing!")
     @YamlKey("database.table_names")
-    private Map<String, String> tableNames = Database.Table.getConfigMap();
+    private TreeMap<String, String> tableNames = new TreeMap<>(Database.Table.getConfigMap());
 
 
     // General settings
@@ -113,7 +113,7 @@ public class Settings {
     @YamlKey("general.max_public_homes")
     private int maxPublicHomes = 10;
 
-    @YamlComment("Whether permission limits (i.e. huskhomes.max_homes.<number>)"
+    @YamlComment("Whether permission limits (i.e. huskhomes.max_homes.<number>) "
             + "should stack if the user inherits multiple nodes.")
     @YamlKey("general.stack_permission_limits")
     private boolean stackPermissionLimits = false;
@@ -142,18 +142,31 @@ public class Settings {
     @YamlKey("general.strict_tpa_here_requests")
     private boolean strictTpaHereRequests = true;
 
+
+    // Name & description settings
     @YamlComment("Whether home or warp names should be case insensitive (i.e. allow /home HomeOne and /home homeone)")
     @YamlKey("general.case_insensitive_names")
     private boolean caseInsensitiveNames = false;
 
-    @YamlComment("Whether home or warp names should allow UTF-8 characters (i.e. allow /home 你好)")
-    @YamlKey("general.allow_unicode_names")
-    private boolean allowUnicodeNames = false;
+    @YamlComment("Whether home and warp names should be restricted by a regex."
+            + "Set this to false to allow full UTF-8 names (i.e. allow /home 你好).")
+    @YamlKey("general.restrict_names")
+    private boolean restrictNames = true;
 
-    @YamlComment("Whether home or warp descriptions should allow UTF-8 characters")
-    @YamlKey("general.allow_unicode_descriptions")
-    private boolean allowUnicodeDescriptions = true;
+    @YamlComment("Regex which home and warp names must match. Names have a max length of 16 characters")
+    @YamlKey("general.name_regex")
+    private String nameRegex = "[a-zA-Z0-9-_]*";
 
+    @YamlComment("Whether home/warp descriptions should be restricted. Set this to true to restrict UTF-8 usage.")
+    @YamlKey("general.restrict_descriptions")
+    private boolean restrictDescriptions = false;
+
+    @YamlComment("Regex which home and warp descriptions must match. A hard max length of 256 characters is enforced")
+    @YamlKey("general.description_regex")
+    private String descriptionRegex = "\\A\\p{ASCII}*\\z";
+
+
+    // Back command settings
     @YamlComment("Whether /back should work to teleport the user to where they died")
     @YamlKey("general.back_command_return_by_death")
     private boolean backCommandReturnByDeath = true;
@@ -176,7 +189,7 @@ public class Settings {
 
     @YamlComment("Which sound effects to play for various actions")
     @YamlKey("general.sound_effects")
-    private Map<String, String> soundEffects = SoundEffectAction.getConfigMap();
+    private TreeMap<String, String> soundEffects = new TreeMap<>(SoundEffectAction.getConfigMap());
 
     @YamlComment("Whether to provide modern, rich TAB suggestions for commands (if available)")
     @YamlKey("general.brigadier_tab_completion")
@@ -252,12 +265,7 @@ public class Settings {
 
     @YamlComment("Set a cooldown between performing actions (in seconds). Docs: https://william278.net/docs/huskhomes/cooldowns/")
     @YamlKey("cooldowns.cooldown_times")
-    private Map<String, Integer> cooldownTimes = Arrays.stream(TransactionResolver.Action.values())
-            .filter(action -> action.getDefaultCooldown() > 0)
-            .collect(Collectors.toMap(
-                    action -> action.name().toLowerCase(Locale.ENGLISH),
-                    TransactionResolver.Action::getDefaultCooldown)
-            );
+    private TreeMap<String, Integer> cooldownTimes = new TreeMap<>(TransactionResolver.Action.getCooldownsConfigMap());
 
 
     // Economy settings
@@ -271,12 +279,7 @@ public class Settings {
 
     @YamlComment("Charge money for perform certain actions. Docs: https://william278.net/docs/huskhomes/economy-hook/")
     @YamlKey("economy.costs")
-    private Map<String, Double> economyCosts = Arrays.stream(TransactionResolver.Action.values())
-            .filter(action -> action.getDefaultCost() > 0)
-            .collect(Collectors.toMap(
-                    action -> action.name().toLowerCase(Locale.ENGLISH),
-                    TransactionResolver.Action::getDefaultCost)
-            );
+    private TreeMap<String, Double> economyCosts = new TreeMap<>(TransactionResolver.Action.getEconomyCostsConfigMap());
 
     // Mapping plugins
     @YamlComment("Display public homes/warps on your Dynmap, BlueMap or Pl3xMap. Docs: https://william278.net/docs/huskhomes/map-hooks")
@@ -302,6 +305,7 @@ public class Settings {
     private Settings() {
     }
 
+    @NotNull
     public String getLanguage() {
         return language;
     }
@@ -310,10 +314,12 @@ public class Settings {
         return checkForUpdates;
     }
 
+    @NotNull
     public Database.Type getDatabaseType() {
         return databaseType;
     }
 
+    @NotNull
     public String getMySqlHost() {
         return mySqlHost;
     }
@@ -322,18 +328,22 @@ public class Settings {
         return mySqlPort;
     }
 
+    @NotNull
     public String getMySqlDatabase() {
         return mySqlDatabase;
     }
 
+    @NotNull
     public String getMySqlUsername() {
         return mySqlUsername;
     }
 
+    @NotNull
     public String getMySqlPassword() {
         return mySqlPassword;
     }
 
+    @NotNull
     public String getMySqlConnectionParameters() {
         return mySqlConnectionParameters;
     }
@@ -358,13 +368,16 @@ public class Settings {
         return mySqlConnectionPoolTimeout;
     }
 
-    public Map<String, String> getTableNames() {
+    @NotNull
+    public TreeMap<String, String> getTableNames() {
+        final TreeMap<String, String> tableNames = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        tableNames.putAll(this.tableNames);
         return tableNames;
     }
 
     @NotNull
     public String getTableName(@NotNull Database.Table table) {
-        return Optional.ofNullable(getTableNames().get(table.name().toLowerCase())).orElse(table.getName());
+        return Optional.ofNullable(getTableNames().get(table.name())).orElse(table.getDefaultName());
     }
 
     public int getMaxHomes() {
@@ -391,6 +404,7 @@ public class Settings {
         return teleportWarmupTime;
     }
 
+    @NotNull
     public Locales.DisplaySlot getTeleportWarmupDisplay() {
         return teleportWarmupDisplay;
     }
@@ -407,12 +421,22 @@ public class Settings {
         return caseInsensitiveNames;
     }
 
-    public boolean doAllowUnicodeNames() {
-        return allowUnicodeNames;
+    public boolean doRestrictNames() {
+        return restrictNames;
     }
 
-    public boolean doAllowUnicodeDescriptions() {
-        return allowUnicodeDescriptions;
+    @NotNull
+    public String getNameRegex() {
+        return nameRegex;
+    }
+
+    public boolean doRestrictDescriptions() {
+        return restrictDescriptions;
+    }
+
+    @NotNull
+    public String getDescriptionRegex() {
+        return descriptionRegex;
     }
 
     public boolean doBackCommandReturnByDeath() {
@@ -435,21 +459,30 @@ public class Settings {
         return playSoundEffects;
     }
 
+    @NotNull
+    public TreeMap<String, String> getSoundEffects() {
+        final TreeMap<String, String> soundEffects = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        soundEffects.putAll(this.soundEffects);
+        return soundEffects;
+    }
+
     public Optional<String> getSoundEffect(@NotNull SoundEffectAction action) {
         if (!doPlaySoundEffects()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(soundEffects.get(action.name().toLowerCase()));
+        return Optional.ofNullable(getSoundEffects().get(action.name()));
     }
 
     public boolean doCrossServer() {
         return crossServer;
     }
 
+    @NotNull
     public Broker.Type getBrokerType() {
         return messageBrokerType;
     }
 
+    @NotNull
     public String getClusterId() {
         return clusterId;
     }
@@ -458,6 +491,7 @@ public class Settings {
         return globalSpawn;
     }
 
+    @NotNull
     public String getGlobalSpawnName() {
         return globalSpawnName;
     }
@@ -466,6 +500,7 @@ public class Settings {
         return globalRespawning;
     }
 
+    @NotNull
     public String getRedisHost() {
         return redisHost;
     }
@@ -474,6 +509,7 @@ public class Settings {
         return redisPort;
     }
 
+    @NotNull
     public String getRedisPassword() {
         return redisPassword;
     }
@@ -511,11 +547,18 @@ public class Settings {
         return cooldowns;
     }
 
+    @NotNull
+    public TreeMap<String, Integer> getCooldownTimes() {
+        final TreeMap<String, Integer> cooldownTimes = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        cooldownTimes.putAll(this.cooldownTimes);
+        return cooldownTimes;
+    }
+
     public long getCooldown(@NotNull TransactionResolver.Action action) {
         if (!doCooldowns()) {
             return 0;
         }
-        final Integer cooldown = cooldownTimes.get(action.name().toLowerCase(Locale.ENGLISH));
+        final Integer cooldown = getCooldownTimes().get(action.name());
         if (cooldown != null && cooldown > 0) {
             return cooldown;
         }
@@ -530,11 +573,18 @@ public class Settings {
         return freeHomeSlots;
     }
 
+    @NotNull
+    public TreeMap<String, Double> getEconomyCosts() {
+        final TreeMap<String, Double> economyCosts = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        economyCosts.putAll(this.economyCosts);
+        return economyCosts;
+    }
+
     public Optional<Double> getEconomyCost(@NotNull TransactionResolver.Action action) {
         if (!doEconomy()) {
             return Optional.empty();
         }
-        final Double cost = economyCosts.get(action.name().toLowerCase(Locale.ENGLISH));
+        final Double cost = getEconomyCosts().get(action.name());
         if (cost != null && cost > 0d) {
             return Optional.of(cost);
         }
@@ -554,11 +604,12 @@ public class Settings {
     }
 
     public boolean isCommandDisabled(Command type) {
-        return disabledCommands.stream().anyMatch(disabled -> {
-            final String command = (disabled.startsWith("/") ? disabled.substring(1) : disabled);
-            return command.equalsIgnoreCase(type.getName())
-                    || type.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(command));
-        });
+        return disabledCommands.stream()
+                .anyMatch(disabled -> {
+                    final String command = (disabled.startsWith("/") ? disabled.substring(1) : disabled);
+                    return command.equalsIgnoreCase(type.getName())
+                            || type.getAliases().stream().anyMatch(alias -> alias.equalsIgnoreCase(command));
+                });
     }
 
     public boolean doBrigadierTabCompletion() {
@@ -573,6 +624,7 @@ public class Settings {
         TELEPORTATION_WARMUP("block.note_block.banjo"),
         TELEPORTATION_CANCELLED("entity.item.break"),
         TELEPORT_REQUEST_RECEIVED("entity.experience_orb.pickup");
+
         private final String defaultEffect;
 
         SoundEffectAction(@NotNull String defaultEffect) {
@@ -581,11 +633,10 @@ public class Settings {
 
         @NotNull
         public static Map<String, String> getConfigMap() {
-            return Arrays.stream(values())
-                    .collect(Collectors.toMap(
-                            SoundEffectAction::name,
-                            action -> action.defaultEffect)
-                    );
+            return Arrays.stream(values()).collect(Collectors.toMap(
+                    action -> action.name().toLowerCase(Locale.ENGLISH),
+                    action -> action.defaultEffect
+            ));
         }
 
     }
